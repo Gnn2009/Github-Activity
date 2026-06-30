@@ -1,8 +1,8 @@
 import sys
+from typing import ItemsView
 import urllib.request
-import urllib.error
 import json
-import os, re
+import re
 from collections import Counter
 
 DATA =[]
@@ -15,9 +15,6 @@ if len(sys.argv) < 2:
 user = sys.argv[1]
 
 url = f"https://api.github.com/users/{user}/events"
-if not os.path.exists("events.json"):
-    with open("events.json", "w", encoding="UTF-8") as file:
-        json.dump({}, file, indent=4)
 req = urllib.request.Request(url)
 with urllib.request.urlopen(req) as file:
     data = json.load(file)
@@ -26,4 +23,19 @@ for event in data:
     urlRepo = event.get("repo",{}).get("url")
     typeRepo = event.get("type")
     date = re.sub(r'\D',"",event.get("created_at"))
-    DATA.append({"URL":[urlRepo, typeRepo, date]})
+    item ={
+        "url": urlRepo,
+        "type": typeRepo,
+        "date": date,
+    }
+    DATA.append(item)
+
+combinaciones = [(event["url"], event["type"]) for event in DATA]
+count = Counter(combinaciones)
+
+for (url, eventype), amount in count.items():
+    split = url.split("/")[-1]
+    if eventype == "PushEvent":
+        print(f"- {amount} Commits pushed to {split}")
+    elif eventype == "CreateEvent":
+        print(f"- {amount} Files created in {split}")
