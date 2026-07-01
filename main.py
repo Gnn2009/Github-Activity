@@ -2,8 +2,13 @@ import sys
 from typing import ItemsView
 import urllib.request
 import json
-import re
+from datetime import datetime
 from collections import Counter
+
+lightBlue = "\033[94m"
+CYAN = "\033[36m"
+GRIS = "\033[90m"
+RESET = "\033[0m"
 
 DATA =[]
 
@@ -22,7 +27,7 @@ with urllib.request.urlopen(req) as file:
 for event in data:
     urlRepo = event.get("repo",{}).get("url")
     typeRepo = event.get("type")
-    date = re.sub(r'\D',"",event.get("created_at"))
+    date = event.get("created_at")
     item ={
         "url": urlRepo,
         "type": typeRepo,
@@ -30,12 +35,14 @@ for event in data:
     }
     DATA.append(item)
 
-combinaciones = [(event["url"], event["type"]) for event in DATA]
+combinaciones = [(event["url"], event["type"], event["date"]) for event in DATA]
 count = Counter(combinaciones)
 
-for (url, eventype), amount in count.items():
+for (url, eventype, date), amount in count.items():
+    dateData = datetime.fromisoformat(date)
+    finalDate = (f"{dateData.day}/{dateData.month}/{dateData.year} :: {dateData.hour}:{dateData.minute:02d}")
     split = url.split("/")[-1]
     if eventype == "PushEvent":
-        print(f"- {amount} Commits pushed to {split}")
+        print(f"- {amount} Commits {CYAN}pushed{RESET} to {CYAN}{split}{RESET}>---{finalDate}")
     elif eventype == "CreateEvent":
-        print(f"- {amount} Files created in {split}")
+        print(f"- {amount} Files {CYAN}created{RESET} in {CYAN}{split}{GRIS} >--- {RESET}{finalDate}")   
