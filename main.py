@@ -1,9 +1,14 @@
 import sys
-from typing import ItemsView
 import urllib.request
 import json
 from datetime import datetime
 from collections import Counter
+
+def setdate(eventype):
+    date = max(event["date"] for event in DATA if event["url"] == url and event["type"] == eventype)
+    lastDate= datetime.fromisoformat(date).astimezone()
+    formatDate = lastDate.strftime("%Y-%m-%d %H:%M")
+    return formatDate
 
 lightBlue = "\033[94m"
 CYAN = "\033[36m"
@@ -35,14 +40,14 @@ for event in data:
     }
     DATA.append(item)
 
-combinaciones = [(event["url"], event["type"], event["date"]) for event in DATA]
+combinaciones = [(event["url"], event["type"]) for event in DATA]
 count = Counter(combinaciones)
 
-for (url, eventype, date), amount in count.items():
-    dateData = datetime.fromisoformat(date)
-    finalDate = (f"{dateData.day}/{dateData.month}/{dateData.year} :: {dateData.hour}:{dateData.minute:02d}")
+for (url, eventype,), amount in count.items():
     split = url.split("/")[-1]
     if eventype == "PushEvent":
-        print(f"- {amount} Commits {CYAN}pushed{RESET} to {CYAN}{split}{RESET}>---{finalDate}")
+        formatDate = setdate(eventype)
+        print(f"- {amount} Commits {CYAN}pushed{RESET} to {CYAN}{split}{RESET} >--- {formatDate}")
     elif eventype == "CreateEvent":
-        print(f"- {amount} Files {CYAN}created{RESET} in {CYAN}{split}{GRIS} >--- {RESET}{finalDate}")   
+        formatDate = setdate(eventype)
+        print(f"- {amount} Files {CYAN}created{RESET} in {CYAN}{split}{RESET} >--- {formatDate}")   
