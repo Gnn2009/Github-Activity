@@ -9,15 +9,32 @@ def setdate(eventype):
     lastDate= datetime.fromisoformat(date).astimezone()
     formatDate = lastDate.strftime("%Y-%m-%d %H:%M")
     return formatDate
-
+    
 lightBlue = "\033[94m"
 CYAN = "\033[36m"
 GRIS = "\033[90m"
 RESET = "\033[0m"
 
+EVENT_TEMPLATES = {
+    "PushEvent": ("Commits", "pushed to"),
+    "CreateEvent": ("Branches/Tags/Repos", "created in"),
+    "DeleteEvent": ("Branches/Tags", "deleted from"),
+    "CommitCommentEvent": ("Comments", "added to commits in"),
+    "PullRequestEvent": ("Pull Requests", "managed in"),
+    "PullRequestReviewEvent": ("PR Reviews", "submitted in"),
+    "PullRequestReviewCommentEvent": ("PR Review Comments", "written in"),
+    "WatchEvent": ("Stars", "given to"),
+    "ForkEvent": ("Forks", "created from"),
+    "IssuesEvent": ("Issues", "updated in"),
+    "IssueCommentEvent": ("Issue Comments", "posted in"),
+    "ReleaseEvent": ("Releases", "published in"),
+    "GollumEvent": ("Wiki Pages", "edited in"),
+    "MemberEvent": ("Collaborators", "modified in"),
+    "PublicEvent": ("Repository", "made open-source in")
+}
 DATA =[]
 
-if len(sys.argv) < 2:
+if len(sys.argv) <= 1:
     print("Please enter your user name")
     print("Use: python main.py <username>")
     sys.exit()
@@ -45,9 +62,6 @@ count = Counter(combinaciones)
 
 for (url, eventype,), amount in count.items():
     split = url.split("/")[-1]
-    if eventype == "PushEvent":
-        formatDate = setdate(eventype)
-        print(f"- {amount} Commits {CYAN}pushed{RESET} to {CYAN}{split}{RESET} >--- {formatDate}")
-    elif eventype == "CreateEvent":
-        formatDate = setdate(eventype)
-        print(f"- {amount} Files {CYAN}created{RESET} in {CYAN}{split}{RESET} >--- {formatDate}")   
+    formatDate = setdate(eventype)
+    noun, action = EVENT_TEMPLATES.get(eventype, ("Activities", "detected in"))
+    print(f"- {amount} {noun} {CYAN}{action}{RESET} {CYAN}{split}{RESET} >--- {formatDate}")
