@@ -3,13 +3,17 @@ import urllib.request
 import json
 from datetime import datetime
 from collections import Counter
-
+def separator(symbol):
+    print(symbol*50)
 def setdate(eventype):
     date = max(event["date"] for event in DATA if event["url"] == url and event["type"] == eventype)
     lastDate= datetime.fromisoformat(date).astimezone()
     formatDate = lastDate.strftime("%Y-%m-%d %H:%M")
     return formatDate
-    
+def print_dashboard(message):
+    separator("=")
+    print(message.upper())
+    separator("=")
 lightBlue = "\033[94m"
 CYAN = "\033[36m"
 GRIS = "\033[90m"
@@ -56,12 +60,27 @@ for event in data:
         "date": date,
     }
     DATA.append(item)
-
-combinaciones = [(event["url"], event["type"]) for event in DATA]
-count = Counter(combinaciones)
-
-for (url, eventype,), amount in count.items():
-    split = url.split("/")[-1]
-    formatDate = setdate(eventype)
-    noun, action = EVENT_TEMPLATES.get(eventype, ("Activities", "detected in"))
-    print(f"- {amount} {noun} {CYAN}{action}{RESET} {CYAN}{split}{RESET} >--- {formatDate}")
+if len(sys.argv) > 2:
+    if sys.argv[2] == "-r":
+        print_dashboard("RESUME DASHBOARD")
+        coimbinations = [event["type"] for event in DATA]
+        count = Counter(coimbinations)
+        for event, amount in count.items():
+            print(f"{event}: " + (amount//10 *"<>") + (amount%10 * "-") + f"({amount})")
+    else:
+        print("ERROR (non-existent command)")
+        exit()
+else:
+    coimbinations = [(event["url"], event["type"]) for event in DATA]
+    all_dates = [event["date"].split("T")[0] for event in DATA]
+    counted_dates = Counter(all_dates)
+    most_day_contributions = counted_dates.most_common(1)[0][0]
+    day_contributions = counted_dates.most_common(1)[0][1]
+    count = Counter(coimbinations)
+    for (url, eventype,), amount in count.items():
+        
+        split = url.split("/")[-1]
+        formatDate = setdate(eventype)
+        noun, action = EVENT_TEMPLATES.get(eventype, ("Activities", "detected in"))
+        print(f"> {amount} {noun} {CYAN}{action}{RESET} {CYAN}{split}{RESET} >--- {formatDate}")
+    print(f"<> The day with {CYAN}most{RESET} contributions was {CYAN}{most_day_contributions}{RESET} with {CYAN}3 contributions{RESET}")
