@@ -3,18 +3,23 @@ import urllib.request
 import json
 from datetime import datetime
 from collections import Counter
+
 def separator(symbol):
-    print(symbol*50)
-def setdate(eventype):
-    date = max(event["date"] for event in DATA if event["url"] == url and event["type"] == eventype)
-    lastDate= datetime.fromisoformat(date).astimezone()
-    formatDate = lastDate.strftime("%Y-%m-%d %H:%M")
-    return formatDate
+    print(symbol * 50)
+
+def set_date(event_type):
+    # This function reads the global variables 'DATA' and 'url'
+    date = max(event["date"] for event in DATA if event["url"] == url and event["type"] == event_type)
+    last_date = datetime.fromisoformat(date).astimezone()
+    formatted_date = last_date.strftime("%Y-%m-%d %H:%M")
+    return formatted_date
+
 def print_dashboard(message):
     separator("=")
     print(message.upper())
     separator("=")
-lightBlue = "\033[94m"
+
+RED = "\033[1;31m"
 CYAN = "\033[36m"
 GRIS = "\033[90m"
 RESET = "\033[0m"
@@ -36,7 +41,7 @@ EVENT_TEMPLATES = {
     "MemberEvent": ("Collaborators", "modified in"),
     "PublicEvent": ("Repository", "made open-source in")
 }
-DATA =[]
+DATA = []
 
 if len(sys.argv) <= 1:
     print("Please enter your user name")
@@ -51,36 +56,57 @@ with urllib.request.urlopen(req) as file:
     data = json.load(file)
 
 for event in data:
-    urlRepo = event.get("repo",{}).get("url")
-    typeRepo = event.get("type")
+    url_repo = event.get("repo", {}).get("url")
+    type_repo = event.get("type")
     date = event.get("created_at")
-    item ={
-        "url": urlRepo,
-        "type": typeRepo,
+    item = {
+        "url": url_repo,
+        "type": type_repo,
         "date": date,
     }
     DATA.append(item)
-if len(sys.argv) > 2:
-    if sys.argv[2] == "-r":
+
+if len(sys.argv) >= 3:
+    if sys.argv[2] == "--type":
+        if sys.argv[3] in EVENT_TEMPLATES:
+            combinations = [event["url"] for event in DATA if event["type"] == sys.argv[3]]
+            all_dates = [event["date"].split("T")[0] for event in DATA if event["type"] == sys.argv[3]]
+            counted_dates = Counter(all_dates)
+            max_contributions = counted_dates.most_common(1)[0][1]
+            most_days_contributions = [date for date, amount in counted_dates.most_common() if amount == max_contributions]
+            formatted_dates = ", ".join(most_days_contributions)
+            count = Counter(combinations)
+            for url, amount in count.items():
+                split_url = url.split("/")[-1]
+                formatted_date = set_date(sys.argv[3])
+                noun, action = EVENT_TEMPLATES.get(sys.argv[3], ("Activities", "detected in"))
+                print(f">─ {amount} {noun} {CYAN}{action}{RESET} {CYAN}{split_url}{RESET} >--- {formatted_date}")
+            print(f"<─> The day with {CYAN}most {sys.argv[3]}'s {RESET}was {CYAN}{formatted_dates}{RESET} with {CYAN}{max_contributions} contributions{RESET}" if len(counted_dates.most_common()) <= 1 else f"<─> The days with {CYAN}most {sys.argv[3]}'s {RESET}were {CYAN}{formatted_dates}{RESET} with {CYAN}{max_contributions} contributions{RESET}")
+        else:
+            print(f"{RED}ERROR (non-existent event){RESET}\n{CYAN}POSIBLE EVENTS:{RESET}")
+            for event in EVENT_TEMPLATES.keys():
+                print(event)
+    elif sys.argv[2] == "-r":
         print_dashboard("RESUME DASHBOARD")
-        coimbinations = [event["type"] for event in DATA]
-        count = Counter(coimbinations)
+        combinations = [event["type"] for event in DATA]
+        count = Counter(combinations)
+        print(f"┌{('─' * 45)}┐")
         for event, amount in count.items():
-            print(f"{event}: " + (amount//10 *"<>") + (amount%10 * "-") + f"({amount})")
+            print(f"  {event}: " + (amount // 10 * "<•>") + (amount % 10 * " ─") + f" <({amount})")
+        print(f"└{('─' * 45)}┘")
     else:
-        print("ERROR (non-existent command)")
+        print(f"{RED}ERROR (non-existent command){RESET}")
         exit()
 else:
-    coimbinations = [(event["url"], event["type"]) for event in DATA]
+    combinations = [(event["url"], event["type"]) for event in DATA]
     all_dates = [event["date"].split("T")[0] for event in DATA]
     counted_dates = Counter(all_dates)
-    most_day_contributions = counted_dates.most_common(1)[0][0]
+    most_days_contributions = counted_dates.most_common(1)[0][0]
     day_contributions = counted_dates.most_common(1)[0][1]
-    count = Counter(coimbinations)
-    for (url, eventype,), amount in count.items():
-        
-        split = url.split("/")[-1]
-        formatDate = setdate(eventype)
-        noun, action = EVENT_TEMPLATES.get(eventype, ("Activities", "detected in"))
-        print(f"> {amount} {noun} {CYAN}{action}{RESET} {CYAN}{split}{RESET} >--- {formatDate}")
-    print(f"<> The day with {CYAN}most{RESET} contributions was {CYAN}{most_day_contributions}{RESET} with {CYAN}3 contributions{RESET}")
+    count = Counter(combinations)
+    for (url, event_type), amount in count.items():  # Kept as 'url' to match your logic
+        split_url = url.split("/")[-1]
+        formatted_date = set_date(event_type)
+        noun, action = EVENT_TEMPLATES.get(event_type, ("Activities", "detected in"))
+        print(f">─ {amount} {noun} {CYAN}{action}{RESET} {CYAN}{split_url}{RESET} >--- {formatted_date}")
+    print(f"<─> The day with {CYAN}most{RESET} contributions was {CYAN}{most_days_contributions}{RESET} with {CYAN}{day_contributions} contributions{RESET}")
