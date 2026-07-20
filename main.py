@@ -19,6 +19,15 @@ def print_dashboard(message):
     print(message.upper())
     separator("=")
 
+def proceing_dates_and_contributions(all_dates, combinations):
+    counted_dates = Counter(all_dates)
+    max_contributions = counted_dates.most_common(1)[0][1]
+    most_days_contributions = [date for date, amount in counted_dates.most_common() if amount == max_contributions]
+    formatted_dates = ", ".join(most_days_contributions)
+    count = Counter(combinations)
+    return max_contributions, most_days_contributions, formatted_dates, count
+
+
 RED = "\033[1;31m"
 CYAN = "\033[36m"
 GRIS = "\033[90m"
@@ -47,14 +56,11 @@ if len(sys.argv) <= 1:
     print("Please enter your user name")
     print("Use: python main.py <username>")
     sys.exit()
-
 user = sys.argv[1]
-
 url = f"https://api.github.com/users/{user}/events"
 req = urllib.request.Request(url)
 with urllib.request.urlopen(req) as file:
     data = json.load(file)
-
 for event in data:
     url_repo = event.get("repo", {}).get("url")
     type_repo = event.get("type")
@@ -65,23 +71,18 @@ for event in data:
         "date": date,
     }
     DATA.append(item)
-
 if len(sys.argv) >= 3:
     if sys.argv[2] == "--type":
         if sys.argv[3] in EVENT_TEMPLATES:
             combinations = [event["url"] for event in DATA if event["type"] == sys.argv[3]]
             all_dates = [event["date"].split("T")[0] for event in DATA if event["type"] == sys.argv[3]]
-            counted_dates = Counter(all_dates)
-            max_contributions = counted_dates.most_common(1)[0][1]
-            most_days_contributions = [date for date, amount in counted_dates.most_common() if amount == max_contributions]
-            formatted_dates = ", ".join(most_days_contributions)
-            count = Counter(combinations)
+            max_contributions, most_days_contributions, formatted_dates, count = proceing_dates_and_contributions(all_dates, combinations)
             for url, amount in count.items():
                 split_url = url.split("/")[-1]
                 formatted_date = set_date(sys.argv[3])
                 noun, action = EVENT_TEMPLATES.get(sys.argv[3], ("Activities", "detected in"))
                 print(f">─ {amount} {noun} {CYAN}{action}{RESET} {CYAN}{split_url}{RESET} >--- {formatted_date}")
-            print(f"<─> The day with {CYAN}most {sys.argv[3]}'s {RESET}was {CYAN}{formatted_dates}{RESET} with {CYAN}{max_contributions} contributions{RESET}" if len(counted_dates.most_common()) <= 1 else f"<─> The days with {CYAN}most {sys.argv[3]}'s {RESET}were {CYAN}{formatted_dates}{RESET} with {CYAN}{max_contributions} contributions{RESET}")
+            print(f"<─> The day with {CYAN}most {sys.argv[3]}'s {RESET}was {CYAN}{formatted_dates}{RESET} with {CYAN}{max_contributions} contributions{RESET}" if len(most_days_contributions) <= 1 else f"<─> The days with {CYAN}most {sys.argv[3]}'s {RESET}were {CYAN}{formatted_dates}{RESET} with {CYAN}{max_contributions} contributions{RESET}")
         else:
             print(f"{RED}ERROR (non-existent event){RESET}\n{CYAN}POSIBLE EVENTS:{RESET}")
             for event in EVENT_TEMPLATES.keys():
@@ -100,13 +101,10 @@ if len(sys.argv) >= 3:
 else:
     combinations = [(event["url"], event["type"]) for event in DATA]
     all_dates = [event["date"].split("T")[0] for event in DATA]
-    counted_dates = Counter(all_dates)
-    most_days_contributions = counted_dates.most_common(1)[0][0]
-    day_contributions = counted_dates.most_common(1)[0][1]
-    count = Counter(combinations)
-    for (url, event_type), amount in count.items():  # Kept as 'url' to match your logic
+    max_contributions, most_days_contributions, formatted_dates, count = proceing_dates_and_contributions(all_dates, combinations)
+    for (url, event_type), amount in count.items():
         split_url = url.split("/")[-1]
         formatted_date = set_date(event_type)
         noun, action = EVENT_TEMPLATES.get(event_type, ("Activities", "detected in"))
         print(f">─ {amount} {noun} {CYAN}{action}{RESET} {CYAN}{split_url}{RESET} >--- {formatted_date}")
-    print(f"<─> The day with {CYAN}most{RESET} contributions was {CYAN}{most_days_contributions}{RESET} with {CYAN}{day_contributions} contributions{RESET}")
+    print(f"<─> The day with {CYAN}most contributions {RESET}was {CYAN}{formatted_dates}{RESET} with {CYAN}{max_contributions} contributions{RESET}" if len(most_days_contributions) <= 1 else f"<─> The days with {CYAN}most contributions {RESET}were {CYAN}{formatted_dates}{RESET} with {CYAN}{max_contributions} contributions{RESET}")
