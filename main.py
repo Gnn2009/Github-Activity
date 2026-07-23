@@ -59,7 +59,7 @@ if len(sys.argv) <= 1:
     sys.exit()
 user = sys.argv[1]
 url = f"https://api.github.com/users/{user}/events"
-req = urllib.request.Request(url)
+req = urllib.request.Request(url, headers={"User-Agents": "Github-Activity-CLI"})
 try:
     with urllib.request.urlopen(req) as file:
         data = json.load(file)
@@ -81,7 +81,7 @@ except urllib.error.HTTPError as e:
     else:
         print(f"{RED}Error HTTP: {e.code}{RESET}")
     exit()
-if len(sys.argv) >= 3:
+if len(sys.argv) == 4:
     if sys.argv[2] == "--type":
         if sys.argv[3] in EVENT_TEMPLATES:
             combinations = [event["url"] for event in DATA if event["type"] == sys.argv[3]]
@@ -114,7 +114,7 @@ else:
     max_contributions, most_days_contributions, formatted_dates, count = proceing_dates_and_contributions(all_dates, combinations)
     for (url, event_type), amount in count.items():
         split_url = url.split("/")[-1]
-        formatted_date = set_date(sys.argv[3],url, DATA)
+        formatted_date = set_date(event_type,url, DATA)
         noun, action = EVENT_TEMPLATES.get(event_type, ("Activities", "detected in"))
         print(f">─ {amount} {noun} {CYAN}{action}{RESET} {CYAN}{split_url}{RESET} >--- {formatted_date}")
     print(f"<─> The day with {CYAN}most contributions {RESET}was {CYAN}{formatted_dates}{RESET} with {CYAN}{max_contributions} contributions{RESET}" if len(most_days_contributions) <= 1 else f"<─> The days with {CYAN}most contributions {RESET}were {CYAN}{formatted_dates}{RESET} with {CYAN}{max_contributions} contributions{RESET}")
