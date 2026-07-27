@@ -5,16 +5,12 @@ import urllib.request
 import urllib.error
 from datetime import datetime
 from collections import Counter
-from pathlib import Path
-
 # ==========================================
 # 1. CONSTANTS AND GLOBAL CONFIGURATION
 # ==========================================
 RED = "\033[1;31m"
 CYAN = "\033[36m"
-GRIS = "\033[90m"
 RESET = "\033[0m"
-
 EVENT_TEMPLATES = {
     "PushEvent": ("Commits", "pushed to"),
     "CreateEvent": ("Branches/Tags/Repos", "created in"),
@@ -32,118 +28,113 @@ EVENT_TEMPLATES = {
     "MemberEvent": ("Collaborators", "modified in"),
     "PublicEvent": ("Repository", "made open-source in")
 }
-
-DATA = []
-file_direction = Path(__file__).resolve()
-
-
 # ==========================================
-# 2. FUNCTIONS
+# 2. HELPER FUNCTIONS
 # ==========================================
-def separator(symbol):
-    print(symbol * 50)
-
-
-def set_date(event_type, targey_url, data):
+def get_last_date(event_type, target_url, data):
     date = max(
         event["date"] for event in data 
-        if event["url"] == targey_url and event["type"] == event_type
+        if event["url"] == target_url and event["type"] == event_type
     )
-    last_date = datetime.fromisoformat(date).astimezone()
-    formatted_date = last_date.strftime("%Y-%m-%d %H:%M")
-    return formatted_date
-
-
-def proceing_dates_and_contributions(all_dates, combinations):
+    actual_time = datetime.now().astimezone()
+    last_date = actual_time - datetime.fromisoformat(date).astimezone()
+    total_seconds = int(last_date.total_seconds())
+    total_hours = total_seconds // 3600
+    minutes = (total_seconds % 3600) // 60
+    
+    if total_hours <= 48:
+        return total_hours, minutes, "hours_format"
+    else:
+        days = total_hours // 24
+        hours = total_hours % 24
+        return days, hours, "days_format"
+def process_dates_and_contributions(all_dates, combinations):
     counted_dates = Counter(all_dates)
+    
     max_contributions = counted_dates.most_common(1)[0][1]
     most_days_contributions = [date for date, amount in counted_dates.most_common() if amount == max_contributions]
-    formatted_dates = ", ".join(most_days_contributions)
+    formatted_dates = " & ".join(most_days_contributions)
     count = Counter(combinations)
     return max_contributions, most_days_contributions, formatted_dates, count
-
-
 # ==========================================
-# 3. CORE LOGIC AND EXECUTION FLOW
+# 3. CORE LOGIC
 # ==========================================
-
-# CLI Arguments
-parse = argparse.ArgumentParser()
-parse.add_argument("user", help="Your Github username")
-parse.add_argument("-r", action="store_true", help="Show resumed information")
-parse.add_argument("--type", choices=EVENT_TEMPLATES, help="Select an event type to show")
-args = parse.parse_args()
-
-if not args.user:
-    print("Please enter your user name")
-    print(f"Use: python {file_direction} <username>")
-    sys.exit()
-
-# Fetch GitHub API
-url = f"https://api.github.com/users/{args.user}/events?per_page=50"
-req = urllib.request.Request(url, headers={"User-Agent": "Github-Activity-CLI"})
-
-try:
-    with urllib.request.urlopen(req) as file:
-        data = json.load(file)
-    for event in data:
-        url_repo = event.get("repo").get("url")
-        type_repo = event.get("type")
-        date = event.get("created_at")
-        item = {
-            "url": url_repo,
-            "type": type_repo,
-            "date": date,
-        }
-        DATA.append(item)
-except urllib.error.HTTPError as e:
-    if e.code == 404:
-        print(f"{RED}Error: User: '{args.user}' does't exist on githib.{RESET}")
-    elif e.code == 403:
-        print(f"{RED}Error: You have reach igthib api litmi request.{RESET}")
-    else:
-        print(f"{RED}Error HTTP: {e.code}{RESET}")
-    sys.exit()
-
-if not DATA:
-    print(f"No se encontraron eventos recientes para el usuario '{args.user}'.")
-    sys.exit()
-
-if args.type:
-    if args.type in EVENT_TEMPLATES:
-        combinations = [event["url"] for event in DATA if event["type"] == args.type]
-        all_dates = [event["date"].split("T")[0] for event in DATA if event["type"] == args.type]
-        max_contributions, most_days_contributions, formatted_dates, count = proceing_dates_and_contributions(all_dates, combinations)
-        
-        for url, amount in count.items():
-            split_url = url.split("/")[-1]
-            formatted_date = set_date(args.type, url, DATA)
-            noun, action = EVENT_TEMPLATES.get(args.type, ("Activities", "detected in"))
-            print(f">─ {amount} {noun} {CYAN}{action}{RESET} {CYAN}{split_url}{RESET} >--- {formatted_date}")
+def main():
+    parser = argparse.ArgumentParser(description="Fetch and display GitHub user activity.")
+    parser.add_argument("user", help="Your GitHub username")
+    parser.add_argument("-r", action="store_true", help="Show summarized information")
+    parser.add_argument("--type", "-type", choices=EVENT_TEMPLATES, help="Select an event type to show")
+    args = parser.parse_args()
+    # Fetch GitHub API
+    url = f"https://api.github.com/users/{args.user}/events?per_page=100"
+    req = urllib.request.Request(url, headers={"User-Agent": "Github-Activity-CLI"})
+    events_data = []
+    try:
+        with urllib.request.urlopen(req) as response:
+            raw_data = json.load(response)
+            for event in raw_data:
+                events_data.append({
+                    "url": event.get("repo", {}).get("url", ""),
+                    "type": event.get("type"),
+                    "date": event.get("created_at"),
+                })
+    except urllib.error.HTTPError as e:
+        if e.code == 404:
+            print(f"{RED}Error: User '{args.user}' doesn't exist on GitHub.{RESET}")
+        elif e.code == 403:
+            print(f"{RED}Error: You have reached the GitHub API rate limit.{RESET}")
+        else:
+            print(f"{RED}HTTP Error: {e.code}{RESET}")
+        sys.exit(1)
+    if not events_data:
+        print(f"No recent events found for user '{args.user}'.")
+        sys.exit(0)
+    print(f"Your activity, welcome {CYAN}{args.user}{RESET}")
+    # Mode 1: Filter by event type
+    if args.type:
+        filtered_events = [e for e in events_data if e["type"] == args.type]
+        if not filtered_events:
+            print(f"No events of type '{args.type}' found for {args.user}.")
+            return
             
-        print(f"<─> The day with {CYAN}most {args.type}'s {RESET}was {CYAN}{formatted_dates}{RESET} with {CYAN}{max_contributions} contributions{RESET}" if len(most_days_contributions) <= 1 else f"<─> The days with {CYAN}most {args.type}'s {RESET}were {CYAN}{formatted_dates}{RESET} with {CYAN}{max_contributions} contributions{RESET}")
+        combinations = [e["url"] for e in filtered_events]
+        all_dates = [e["date"].split("T")[0] for e in filtered_events]
+        max_contribs, most_days, formatted_dates, count = process_dates_and_contributions(all_dates, combinations)
+        for repo_url, amount in count.items():
+            repo_name = repo_url.split("/")[-1]
+            hours, minutes, format = get_last_date(args.type, repo_url, events_data)
+            noun, action = EVENT_TEMPLATES.get(args.type, ("Activities", "detected in"))
+            left_text = f"{amount} {noun} {action}"
+            
+            time_str = f"{hours}h {minutes}min" if format == "hours_format" else f"{hours}d {minutes}h"
+            print(f"<•> {CYAN}{left_text:<35}{RESET}| {CYAN}{repo_name:<20}{RESET}| last: {time_str}")
+        plural_text = "were" if len(most_days) > 1 else "was"
+        print(f"{CYAN}{"─"*100}{RESET}")
+        print(f"<•> The day(s) with {CYAN}most contributions{RESET} {plural_text} {CYAN}{formatted_dates}{RESET} with {CYAN}{max_contribs} contributions{RESET}")
+    # Mode 2: Resumed (-r) view
+    elif args.r:
+        combinations = [e["type"] for e in events_data]
+        count = Counter(combinations)
+        print(f"┌{('─' * 45)}┐")
+        for event, amount in count.items():
+            bar = (amount // 10 * "<•>") + (amount % 10 * " ─")
+            print(f"  {event}: {bar} <({amount})")
+        print(f"└{('─' * 45)}┘")
+    # Mode 3: Standard View
     else:
-        print(f"{RED}ERROR (non-existent event){RESET}\n{CYAN}POSIBLE EVENTS:{RESET}")
-        for event in EVENT_TEMPLATES.keys():
-            print(event)
-
-elif args.r:
-    combinations = [event["type"] for event in DATA]
-    count = Counter(combinations)
-    print(f"┌{('─' * 45)}┐")
-    for event, amount in count.items():
-        print(f"  {event}: " + (amount // 10 * "<•>") + (amount % 10 * " ─") + f" <({amount})")
-    print(f"└{('─' * 45)}┘")
-
-else:
-    combinations = [(event["url"], event["type"]) for event in DATA]
-    all_dates = [event["date"].split("T")[0] for event in DATA]
-    max_contributions, most_days_contributions, formatted_dates, count = proceing_dates_and_contributions(all_dates, combinations)
-    
-    for (url, event_type), amount in count.items():
-        split_url = url.split("/")[-1]
-        formatted_date = set_date(event_type, url, DATA)
-        noun, action = EVENT_TEMPLATES.get(event_type, ("Activities", "detected in"))
-        print(f">─ {amount} {noun} {CYAN}{action}{RESET} {CYAN}{split_url}{RESET} >--- {formatted_date}")
-        
-    print(f"<─> The day with {CYAN}most contributions {RESET}was {CYAN}{formatted_dates}{RESET} with {CYAN}{max_contributions} contributions{RESET}" if len(most_days_contributions) <= 1 else f"<─> The days with {CYAN}most contributions {RESET}were {CYAN}{formatted_dates}{RESET} with {CYAN}{max_contributions} contributions{RESET}")
+        combinations = [(e["url"], e["type"]) for e in events_data]
+        all_dates = [e["date"].split("T")[0] for e in events_data]
+        max_contribs, most_days, formatted_dates, count = process_dates_and_contributions(all_dates, combinations)
+        for (repo_url, event_type), amount in count.items():
+            repo_name = repo_url.split("/")[-1]
+            hours, minutes, format = get_last_date(event_type, repo_url, events_data)
+            noun, action = EVENT_TEMPLATES.get(event_type, ("Activities", "detected in"))
+            left_text = f"{amount} {noun} {action}"
+            
+            time_str = f"{hours}h {minutes}min" if format == "hours_format" else f"{hours}d {minutes}h"
+            print(f"<•> {CYAN}{left_text:<35}{RESET}| {CYAN}{repo_name:<20}{RESET}| last: {time_str}")
+        plural_text = "were" if len(most_days) > 1 else "was"
+        print(f"{CYAN}{"─"*100}{RESET}")
+        print(f"<•> The day(s) with {CYAN}most contributions{RESET} {plural_text} {CYAN}{formatted_dates}{RESET} with {CYAN}{max_contribs} contributions{RESET}")
+if __name__ == "__main__":
+    main()
