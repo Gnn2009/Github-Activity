@@ -60,6 +60,7 @@ def process_dates_and_contributions(all_dates, combinations):
 # 3. CORE LOGIC
 # ==========================================
 def main():
+    print()
     parser = argparse.ArgumentParser(description="Fetch and display GitHub user activity.")
     parser.add_argument("user", help="Your GitHub username")
     parser.add_argument("-r", action="store_true", help="Show summarized information")
@@ -100,17 +101,19 @@ def main():
         combinations = [e["url"] for e in filtered_events]
         all_dates = [e["date"].split("T")[0] for e in filtered_events]
         max_contribs, most_days, formatted_dates, count = process_dates_and_contributions(all_dates, combinations)
+        print(f"┌{('─' * 100)}┐")
         for repo_url, amount in count.items():
             repo_name = repo_url.split("/")[-1]
             hours, minutes, format = get_last_date(args.type, repo_url, events_data)
             noun, action = EVENT_TEMPLATES.get(args.type, ("Activities", "detected in"))
             left_text = f"{amount} {noun} {action}"
-            
             time_str = f"{hours}h {minutes}min" if format == "hours_format" else f"{hours}d {minutes}h"
-            print(f"<•> {CYAN}{left_text:<35}{RESET}| {CYAN}{repo_name:<20}{RESET}| last: {time_str}")
+            print(f"│ <•> {CYAN}{left_text:<40}{RESET}│ {CYAN}{repo_name:<25}{RESET}│ last: {time_str:<20}│")
         plural_text = "were" if len(most_days) > 1 else "was"
-        print(f"{CYAN}{"─"*100}{RESET}")
-        print(f"<•> The day(s) with {CYAN}most contributions{RESET} {plural_text} {CYAN}{formatted_dates}{RESET} with {CYAN}{max_contribs} contributions{RESET}")
+        print(f"│{CYAN}{"─"*100}{RESET}│")
+        plain_text = f" <•> The day(s) with {CYAN}most {args.type}'s{RESET} {plural_text}{CYAN} {formatted_dates}{RESET} with{CYAN} {max_contribs} contributions{RESET}"
+        print(f"│{plain_text:<127}│")
+        print(f"└{('─' * 100)}┘")
     # Mode 2: Resumed (-r) view
     elif args.r:
         combinations = [e["type"] for e in events_data]
@@ -118,23 +121,26 @@ def main():
         print(f"┌{('─' * 45)}┐")
         for event, amount in count.items():
             bar = (amount // 10 * "<•>") + (amount % 10 * " ─")
-            print(f"  {event}: {bar} <({amount})")
+            plain_text = f"{CYAN}{event}{RESET}: {bar} <({amount})"
+            print(f"│{plain_text:<54}│")
         print(f"└{('─' * 45)}┘")
     # Mode 3: Standard View
     else:
         combinations = [(e["url"], e["type"]) for e in events_data]
         all_dates = [e["date"].split("T")[0] for e in events_data]
         max_contribs, most_days, formatted_dates, count = process_dates_and_contributions(all_dates, combinations)
+        print(f"┌{('─' * 100)}┐")
         for (repo_url, event_type), amount in count.items():
             repo_name = repo_url.split("/")[-1]
             hours, minutes, format = get_last_date(event_type, repo_url, events_data)
             noun, action = EVENT_TEMPLATES.get(event_type, ("Activities", "detected in"))
             left_text = f"{amount} {noun} {action}"
-            
             time_str = f"{hours}h {minutes}min" if format == "hours_format" else f"{hours}d {minutes}h"
-            print(f"<•> {CYAN}{left_text:<35}{RESET}| {CYAN}{repo_name:<20}{RESET}| last: {time_str}")
+            print(f"│ <•> {CYAN}{left_text:<40}{RESET}│ {CYAN}{repo_name:<25}{RESET}│ last: {time_str:<20}│")
         plural_text = "were" if len(most_days) > 1 else "was"
-        print(f"{CYAN}{"─"*100}{RESET}")
-        print(f"<•> The day(s) with {CYAN}most contributions{RESET} {plural_text} {CYAN}{formatted_dates}{RESET} with {CYAN}{max_contribs} contributions{RESET}")
+        print(f"│{CYAN}{"─"*100}{RESET}│")
+        plain_text = f" <•> The day(s) with {CYAN}most contributions{RESET} {plural_text} {CYAN}{formatted_dates}{RESET} with {CYAN}{max_contribs} contributions{RESET}"
+        print(f"│{plain_text:<127}│")
+        print(f"└{('─' * 100)}┘")
 if __name__ == "__main__":
     main()
