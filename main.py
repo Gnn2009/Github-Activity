@@ -55,20 +55,20 @@ def process_dates_and_contributions(all_dates, combinations):
     most_days_contributions = [date for date, amount in counted_dates.most_common() if amount == max_contributions]
     formatted_dates = " & ".join(most_days_contributions)
     count = Counter(combinations)
+    print(count)
     return max_contributions, most_days_contributions, formatted_dates, count
 def event_setup_and_printing(event_type, repo_name, amount, first_time, second_time, format):
     noun, action = EVENT_TEMPLATES.get(event_type, ("Activities", "detected in"))
     left_text = f"{amount} {noun} {action}"
     time_str = f"{first_time}h {second_time}min" if format == "hours_format" else f"{first_time}d {second_time}h"
-
-    print(f"│ <•> {CYAN}{left_text:<40}{RESET}│ {CYAN}{repo_name:<25}{RESET}│ last: {time_str:<20}│")
+    print(f"│ <•> {CYAN}{left_text:<40}{RESET}│ {CYAN}{repo_name:<35}{RESET}│ last: {time_str:<20}│")
 def most_contributions_day_print(args, most_days,max_contribs, formatted_dates):
         plural_text = "were" if len(most_days) > 1 else "was"
-        print(f"│{CYAN}{"─"*100}{RESET}│")
+        print(f"│{CYAN}{"─"*110}{RESET}│")
         event_str = f"{args.type}'s" if args.type else "contributions"
         plain_text = f" <•> The day(s) with {CYAN}most {event_str}{RESET} {plural_text} {CYAN}{formatted_dates}{RESET} with {CYAN}{max_contribs} contributions{RESET}"
-        print(f"│{plain_text:<127}│")
-        print(f"└{('─' * 100)}┘")
+        print(f"│{plain_text:<137}│")
+        print(f"└{('─' * 110)}┘")
 # ==========================================
 # 3. CORE LOGIC
 # ==========================================
@@ -121,7 +121,19 @@ def main():
             event_setup_and_printing(args.type, repo_name, amount,first_time, second_time, format)
         most_contributions_day_print(args, most_days, max_contribs, formatted_dates)
     elif args.repo:
-        print("Repo mode")
+        filtered_events = [e for e in events_data if e["url"].split("/")[-1] == args.repo]
+        if not filtered_events:
+            print(f"There is no public repository named '{args.repo}' by {args.user}.")
+            return
+        combinations = [(e["url"], e["type"]) for e in filtered_events]
+        all_dates = [e["date"].split("T")[0] for e in filtered_events]
+        max_contribs, most_days, formatted_dates, count = process_dates_and_contributions(all_dates, combinations)
+        print(f"┌{('─' * 100)}┐")
+        for (repo_url, event_type), amount in count.items():
+            repo_name = repo_url.split("/")[-1]
+            first_time, second_time, format = get_last_date(event_type, repo_url, filtered_events)
+            event_setup_and_printing(event_type, repo_name, amount,first_time, second_time, format)
+        most_contributions_day_print(args, most_days, max_contribs, formatted_dates)
     # Mode 3: Resumed (-r) view
     elif args.r:
         combinations = [e["type"] for e in events_data]
@@ -137,9 +149,9 @@ def main():
         combinations = [(e["url"], e["type"]) for e in events_data]
         all_dates = [e["date"].split("T")[0] for e in events_data]
         max_contribs, most_days, formatted_dates, count = process_dates_and_contributions(all_dates, combinations)
-        print(f"┌{('─' * 100)}┐")
+        print(f"┌{('─' * 110)}┐")
         for (repo_url, event_type), amount in count.items():
-            repo_name = repo_url.split("/")[-1]
+            repo_name = f"{repo_url.split("/")[-2]}/{repo_url.split("/")[-1]}"
             first_time, second_time, format = get_last_date(event_type, repo_url, events_data)
             event_setup_and_printing(event_type, repo_name, amount,first_time, second_time, format)
         most_contributions_day_print(args, most_days, max_contribs, formatted_dates)
