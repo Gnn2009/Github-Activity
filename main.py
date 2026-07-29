@@ -78,6 +78,7 @@ def main():
     parser.add_argument("user", help="Your GitHub username")
     parser.add_argument("-r", action="store_true", help="Show summarized information")
     parser.add_argument("--type", "-type", choices=EVENT_TEMPLATES, help="Select an event type to show")
+    parser.add_argument("--repo", "-repo", help="Enter the repository name to fetch activity")
     args = parser.parse_args()
     # Fetch GitHub API
     url = f"https://api.github.com/users/{args.user}/events?per_page=100"
@@ -119,7 +120,9 @@ def main():
             first_time, second_time, format = get_last_date(args.type, repo_url, events_data)
             event_setup_and_printing(args.type, repo_name, amount,first_time, second_time, format)
         most_contributions_day_print(args, most_days, max_contribs, formatted_dates)
-    # Mode 2: Resumed (-r) view
+    elif args.repo:
+        print("Repo mode")
+    # Mode 3: Resumed (-r) view
     elif args.r:
         combinations = [e["type"] for e in events_data]
         count = Counter(combinations)
@@ -129,7 +132,7 @@ def main():
             plain_text = f"{CYAN}{event}{RESET}: {bar} <({amount})"
             print(f"│{plain_text:<54}│")
         print(f"└{('─' * 45)}┘")
-    # Mode 3: Standard View
+    # Mode 4: Standard View
     else:
         combinations = [(e["url"], e["type"]) for e in events_data]
         all_dates = [e["date"].split("T")[0] for e in events_data]
