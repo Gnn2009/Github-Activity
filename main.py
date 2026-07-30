@@ -71,7 +71,7 @@ def most_contributions_day_print(args, most_days, max_contribs, formatted_dates)
     print(f"│{plain_text:<137}│")
     print(f"└{lines}┘")
 def get_combination_and_dates(filter, args, user, data, args_value):
-    phrase, conector = ("There is no public repository named ", " by ") if args_value == "repo" else ("No events of type ", " founds for ")
+    phrase, conector = ("There is no public repository named ", " by ") if args_value == "repo" else ("No events of type ", " found for ")
     filtered_events = [e for e in data if e[filter].split("/")[-1] == args]
     if not filtered_events:
         print(f"{phrase}'{args}'{conector}{user}.")
@@ -79,18 +79,34 @@ def get_combination_and_dates(filter, args, user, data, args_value):
     combinations = [(e["url"], e["type"]) for e in filtered_events]
     all_dates = [e["date"].split("T")[0] for e in filtered_events]
     return combinations, all_dates
+def filtered_by_argument(all_dates, combinations, events_data, args):
+        max_contribs, most_days, formatted_dates, count = process_dates_and_contributions(all_dates, combinations)
+        print(f"┌{('─' * 110)}┐")
+        #  Desempaquetamos (repo_url, event_type) porque es una tupla
+        for (repo_url, event_type), amount in count.items():
+            repo_name = f"{repo_url.split('/')[-2]}/{repo_url.split('/')[-1]}"
+            first_time, second_time, format = get_last_date(event_type, repo_url, events_data)
+            event_setup_and_printing(event_type, repo_name, amount, first_time, second_time, format)
+        most_contributions_day_print(args, most_days, max_contribs, formatted_dates)
 # ==========================================
 # 3. CORE LOGIC
 # ==========================================
 def main():
     parser = argparse.ArgumentParser(description="Fetch and display GitHub user activity.")
     parser.add_argument("user", help="Your GitHub username")
-    parser.add_argument("-r", action="store_true", help="Show summarized information")
-    parser.add_argument("--type", "-type", choices=EVENT_TEMPLATES, help="Select an event type to show")
-    parser.add_argument("--repo", "-repo", help="Enter the repository name to fetch activity")
+    parser.add_argument("-p", "--pages", help="Quantity of pages to show (100 max!)")
+    parser.add_argument("-r", "--resumed", action="store_true", help="Show summarized information")
+    parser.add_argument("-t", "--type", choices=EVENT_TEMPLATES, help="Select an event type to show")
+    parser.add_argument("-re", "--repo", help="Enter the repository name to fetch activity")
     args = parser.parse_args()
+    try:
+        per_page = int(args.pages) if args.pages else 100
+        per_page = min(max(1, per_page), 100)
+    except ValueError:
+        print(f"{RED}Error: --pages debe ser un número entero.{RESET}")
+        sys.exit(1)
     # Fetch GitHub API
-    url = f"https://api.github.com/users/{args.user}/events?per_page=100"
+    url = f"https://api.github.com/users/{args.user}/events?per_page=100" if not args.p else f"https://api.github.com/users/{args.user}/events?per_page={args.p}"
     req = urllib.request.Request(url, headers={"User-Agent": "Github-Activity-CLI"})
     events_data = []
     try:
@@ -117,25 +133,12 @@ def main():
     # Mode 1: Filter by event type
     if args.type:
         combinations, all_dates = get_combination_and_dates("type", args.type, args.user, events_data, "type")
-        max_contribs, most_days, formatted_dates, count = process_dates_and_contributions(all_dates, combinations)
-        print(f"┌{('─' * 110)}┐")
-        #  Desempaquetamos (repo_url, event_type) porque es una tupla
-        for (repo_url, event_type), amount in count.items():
-            repo_name = f"{repo_url.split('/')[-2]}/{repo_url.split('/')[-1]}"
-            first_time, second_time, format = get_last_date(event_type, repo_url, events_data)
-            event_setup_and_printing(event_type, repo_name, amount, first_time, second_time, format)
-        most_contributions_day_print(args, most_days, max_contribs, formatted_dates)
+        filtered_by_argument(all_dates,combinations,events_data, args)
     # Mode 2: Filter by repository
     elif args.repo:
         #  Cambiado args.type por args.repo
         combinations, all_dates = get_combination_and_dates("url", args.repo, args.user, events_data, "repo")
-        max_contribs, most_days, formatted_dates, count = process_dates_and_contributions(all_dates, combinations)
-        print(f"┌{('─' * 110)}┐")
-        for (repo_url, event_type), amount in count.items():
-            repo_name = f"{repo_url.split('/')[-2]}/{repo_url.split('/')[-1]}"
-            first_time, second_time, format = get_last_date(event_type, repo_url, events_data)
-            event_setup_and_printing(event_type, repo_name, amount, first_time, second_time, format)
-        most_contributions_day_print(args, most_days, max_contribs, formatted_dates)
+        filtered_by_argument(all_dates,combinations,events_data, args)
     # Mode 3: Resumed (-r) view
     elif args.r:
         combinations = [e["type"] for e in events_data]
@@ -150,12 +153,6 @@ def main():
     else:
         combinations = [(e["url"], e["type"]) for e in events_data]
         all_dates = [e["date"].split("T")[0] for e in events_data]
-        max_contribs, most_days, formatted_dates, count = process_dates_and_contributions(all_dates, combinations)
-        print(f"┌{('─' * 110)}┐")
-        for (repo_url, event_type), amount in count.items():
-            repo_name = f"{repo_url.split('/')[-2]}/{repo_url.split('/')[-1]}"
-            first_time, second_time, format = get_last_date(event_type, repo_url, events_data)
-            event_setup_and_printing(event_type, repo_name, amount, first_time, second_time, format)
-        most_contributions_day_print(args, most_days, max_contribs, formatted_dates)
+        filtered_by_argument(all_dates,combinations,events_data, args)
 if __name__ == "__main__":
     main()
