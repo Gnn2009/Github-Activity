@@ -69,7 +69,7 @@ def most_contributions_day_print(args, most_days, max_contribs, formatted_dates)
     event_str = f"{args.type}'s" if args.type else "contributions"
     plain_text = f" <•> The day(s) with {CYAN}most {event_str}{RESET} {plural_text} {CYAN}{formatted_dates}{RESET} with {CYAN}{max_contribs} contributions{RESET}"
     print(f"│{plain_text:<137}│")
-    print(f"└{lines}┘")
+    print(f"╰{lines}╯")
 def get_combination_and_dates(filter, args, user, data, args_value):
     phrase, conector = ("There is no public repository named ", " by ") if args_value == "repo" else ("No events of type ", " found for ")
     filtered_events = [e for e in data if e[filter].split("/")[-1] == args]
@@ -81,7 +81,7 @@ def get_combination_and_dates(filter, args, user, data, args_value):
     return combinations, all_dates
 def filtered_by_argument(all_dates, combinations, events_data, args):
         max_contribs, most_days, formatted_dates, count = process_dates_and_contributions(all_dates, combinations)
-        print(f"┌{('─' * 110)}┐")
+        print(f"╭{('─' * 110)}╮")
         #  Desempaquetamos (repo_url, event_type) porque es una tupla
         for (repo_url, event_type), amount in count.items():
             repo_name = f"{repo_url.split('/')[-2]}/{repo_url.split('/')[-1]}"
@@ -106,7 +106,7 @@ def main():
         print(f"{RED}Error: --pages debe ser un número entero.{RESET}")
         sys.exit(1)
     # Fetch GitHub API
-    url = f"https://api.github.com/users/{args.user}/events?per_page=100" if not args.p else f"https://api.github.com/users/{args.user}/events?per_page={args.p}"
+    url = f"https://api.github.com/users/{args.user}/events?per_page={args.pages}"
     req = urllib.request.Request(url, headers={"User-Agent": "Github-Activity-CLI"})
     events_data = []
     try:
@@ -140,15 +140,15 @@ def main():
         combinations, all_dates = get_combination_and_dates("url", args.repo, args.user, events_data, "repo")
         filtered_by_argument(all_dates,combinations,events_data, args)
     # Mode 3: Resumed (-r) view
-    elif args.r:
+    elif args.resumed:
         combinations = [e["type"] for e in events_data]
         count = Counter(combinations)
-        print(f"┌{('─' * 45)}┐")
+        print(f"╭{('─' * 45)}╮")
         for event, amount in count.items():
             bar = (amount // 10 * "<•>")+((amount // 10)//5 * "<>") + ((amount % 10) % 5 * " ─")
             plain_text = f"{CYAN}{event}{RESET}: {bar} <({amount})"
             print(f"│{plain_text:<54}│")
-        print(f"└{('─' * 45)}┘")
+        print(f"╰{("─"*45)}╯")
     # Mode 4: Standard View
     else:
         combinations = [(e["url"], e["type"]) for e in events_data]
